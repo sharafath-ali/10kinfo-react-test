@@ -45,3 +45,9 @@ A high-end, responsive financial web application built with React and Vite. It c
    ```bash
    npm run build
    ```
+
+## Design Decisions
+
+### Chronological Timestamp Sorting
+The initial seed dataset (`Sample-data.json`) contains dates in multiple format variants and is out of order. To correctly calculate percentage changes ($\Delta$ Change) and market signals for consecutive items in the feed (especially for the inflation alert engine), the utility function `normalizeData` sorts the feed entries chronologically by timestamp before feeding them to the components. This guarantees that all calculated changes and signal indicators remain chronologically consistent.
+
