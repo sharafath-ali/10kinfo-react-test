@@ -38,7 +38,7 @@ A high-end, responsive financial web application built with React and Vite. It c
 │           └─► generateLiveEntry()  ← pure math/random   │
 │                   no fetch()                            │
 │                   no axios                              │
-│                   no WebSocket                          │
+│                   no WebSocket / webhook                │
 └─────────────────────────────────────────────────────────┘
 ```
 
