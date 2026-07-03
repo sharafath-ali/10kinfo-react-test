@@ -41,46 +41,51 @@ export default function App() {
   return (
     <div className="flex flex-col min-h-screen bg-slate-50">
 
-      {/* ── Header ─────────────────────────────────────────── */}
-      <header className="bg-slate-900 border-b border-slate-700 px-6 h-16 flex items-center justify-between sticky top-0 z-20 shadow-lg">
-        <div className="flex items-center gap-3">
-          {/* Logo */}
-          <div className="w-9 h-9 rounded-lg bg-gradient-to-br from-blue-500 to-blue-400 flex items-center justify-center shadow-md shadow-blue-900/30">
-            <BarChart2 className="w-5 h-5 text-white" />
+      {/* ════════════════════════════════════════════
+          STICKY: Brand header + Status bar only
+          ════════════════════════════════════════════ */}
+      <div className="sticky top-0 z-20 flex flex-col shadow-lg">
+
+        {/* Brand Header — 64px */}
+        <header className="bg-slate-900 border-b border-slate-700 px-6 h-16 flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="w-9 h-9 rounded-lg bg-gradient-to-br from-blue-500 to-blue-400 flex items-center justify-center shadow-md shadow-blue-900/30">
+              <BarChart2 className="w-5 h-5 text-white" />
+            </div>
+            <div>
+              <h1 className="text-base font-bold text-white leading-tight tracking-tight">
+                FedWatch Dashboard
+              </h1>
+              <p className="text-[11px] text-blue-400 uppercase tracking-widest font-medium leading-none">
+                Federal Reserve Intelligence
+              </p>
+            </div>
           </div>
-          <div>
-            <h1 className="text-base font-bold text-white leading-tight tracking-tight">
-              FedWatch Dashboard
-            </h1>
-            <p className="text-[11px] text-blue-400 uppercase tracking-widest font-medium leading-none">
-              Federal Reserve Intelligence
-            </p>
+          <div className="text-xs font-mono text-slate-400">
+            {new Date().toLocaleDateString('en-US', {
+              weekday: 'short', month: 'short', day: 'numeric', year: 'numeric',
+            })}
           </div>
-        </div>
+        </header>
 
-        {/* Date */}
-        <div className="text-xs font-mono text-slate-400">
-          {new Date().toLocaleDateString('en-US', {
-            weekday: 'short', month: 'short', day: 'numeric', year: 'numeric',
-          })}
-        </div>
-      </header>
+        {/* Status Bar — slim dark strip */}
+        <StatusBar
+          lastUpdated={lastUpdated}
+          tickCount={tickCount}
+          totalEntries={data.length}
+          alertCount={alertCount}
+        />
 
-      {/* ── Status Bar ─────────────────────────────────────── */}
-      <StatusBar
-        lastUpdated={lastUpdated}
-        tickCount={tickCount}
-        totalEntries={data.length}
-        alertCount={alertCount}
-      />
+      </div>
+      {/* ════════════════════════════════════════════ */}
 
-      {/* ── Main Content ────────────────────────────────────── */}
+      {/* ── Scrollable page content ────────────────── */}
       <main className="flex-1 px-6 py-6 max-w-screen-2xl mx-auto w-full">
 
-        {/* KPI Summary */}
+        {/* KPI Summary Cards */}
         <SummaryPanel data={data} />
 
-        {/* Good / Bad Banner */}
+        {/* Good / Bad News Banner */}
         <NewsBanner data={filteredData} />
 
         {/* Filter Controls */}
