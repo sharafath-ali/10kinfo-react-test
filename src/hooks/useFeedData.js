@@ -1,75 +1,104 @@
 /**
- * useFeedData.js
- * ─────────────────────────────────────────────────────────────
- * Custom hook: manages the normalized data state and 2-second
- * live-update simulation. Uses stable references to prevent
- * unnecessary re-renders.
+ * useFeedData.js — improved realistic data generation
+ * Keeps 2-second live update tick, improves drift to be gradual & realistic.
  */
 
 import { useState, useEffect, useRef, useCallback } from 'react';
-import rawData from '../data/Sample-data.json';
-import { normalizeData } from '../utils/normalizeData';
-import { computeInflationDeltas, enrichWithSignals } from '../utils/inflationAlert';
+import rawData from '@/data/Sample-data.json';
+import { normalizeData } from '@/utils/normalizeData';
+import { computeInflationDeltas, enrichWithSignals } from '@/utils/inflationAlert';
 
-// ─── Seed data (normalize once at module load) ────────────────────────────────
+// ── Normalize seed data once ─────────────────────────────────────────────────
 const SEED_DATA = enrichWithSignals(computeInflationDeltas(normalizeData(rawData)));
 
-// ─── Mock update generator ────────────────────────────────────────────────────
+// ── Category-specific realistic ranges ──────────────────────────────────────
+
+/**
+ * Realistic per-tick drift configuration.
+ * The economy moves slowly — each 2s tick simulates a small intraday move.
+ *
+ * maxDriftPct: max % change per tick (very small = realistic)
+ * minVal / maxVal: hard bounds so values never go absurd
+ * formatFn: how to display the value
+ */
+const CATEGORY_CONFIG = {
+  Inflation: {
+    // CPI moves ~0.1-0.4% per month; per tick we simulate tiny intraday moves
+    maxDriftPct: 0.0008,        // 0.08% per tick max
+    minVal: 800_000_000,        // $0.8B floor
+    maxVal: 6_000_000_000,      // $6B ceiling
+    format: (v) => {
+      if (v >= 1e9) return { display: `$${(v / 1e9).toFixed(2)}B`, suffix: 'B' };
+      return { display: `$${(v / 1e6).toFixed(0)}M`, suffix: 'M' };
+    },
+  },
+  Employment: {
+    // NFP typically ±50k–200k per month; micro moves per tick
+    maxDriftPct: 0.003,         // 0.3% per tick
+    minVal: 100_000,            // 100k floor
+    maxVal: 700_000,            // 700k ceiling
+    format: (v) => {
+      const rounded = Math.round(v / 1000) * 1000;
+      return { display: rounded.toLocaleString('en-US'), suffix: '' };
+    },
+  },
+  GDP: {
+    // GDP growth rate: realistic 1–5% annualized; tiny moves per tick
+    maxDriftPct: 0.002,         // 0.2% per tick
+    minVal: 0.5,                // 0.5% floor
+    maxVal: 6.0,                // 6% ceiling
+    format: (v) => ({ display: `${v.toFixed(2)}%`, suffix: '%' }),
+  },
+  Rates: {
+    // Fed only moves in 0.25% increments; very slow drift simulation
+    maxDriftPct: 0.001,         // 0.1% per tick
+    minVal: 0.25,               // 0.25% floor
+    maxVal: 9.0,                // 9% ceiling
+    format: (v) => ({ display: `${v.toFixed(2)}%`, suffix: '%' }),
+  },
+};
 
 const SOURCES    = ['FED', 'BLS', 'BEA', 'TREASURY'];
 const CATEGORIES = ['Inflation', 'Employment', 'GDP', 'Rates'];
 
-let nextId = SEED_DATA.length + 1;
+// Momentum state: slight trend continuation
+const momentum = { Inflation: 0, Employment: 0, GDP: 0, Rates: 0 };
 
-// Category-specific baselines when no seed data exists yet
-const CATEGORY_DEFAULTS = {
-  Inflation:  1_200_000_000,   // ~$1.2B
-  Employment: 420_000,          // ~420,000 people
-  GDP:        2.4,              // ~2.4%
-  Rates:      5.25,             // ~5.25%
-};
+let nextId = SEED_DATA.length + 1;
 
 function generateLiveEntry(baseEntries) {
   const category = CATEGORIES[Math.floor(Math.random() * CATEGORIES.length)];
   const source   = SOURCES[Math.floor(Math.random() * SOURCES.length)];
+  const config   = CATEGORY_CONFIG[category];
 
-  // Base off the last entry of same category for realism
+  // Base value: last known for this category
   const siblings = baseEntries.filter((e) => e.category === category);
   const lastVal  = siblings.length
     ? siblings[siblings.length - 1].numericValue
-    : CATEGORY_DEFAULTS[category] ?? 1_000_000_000;
+    : SEED_DATA.filter((e) => e.category === category).slice(-1)[0]?.numericValue ?? 1_000_000;
 
-  // Random drift ±8% for stability
-  const drift  = 1 + (Math.random() * 0.16 - 0.08);
-  const newVal = lastVal * drift;
+  // Momentum: 30% carry from previous tick direction, 70% new random
+  const newRandom  = (Math.random() - 0.5) * 2;             // -1 to +1
+  momentum[category] = 0.3 * momentum[category] + 0.7 * newRandom;
 
-  let displayValue, valueSuffix;
+  // Apply drift
+  const drift  = 1 + momentum[category] * config.maxDriftPct;
+  let newVal   = lastVal * drift;
 
-  if (category === 'Employment') {
-    // Headcount — integer, no dollar sign
-    const rounded = Math.round(newVal / 1000) * 1000;
-    displayValue = rounded.toLocaleString('en-US');
-    valueSuffix  = '';
-  } else if (category === 'GDP' || category === 'Rates') {
-    displayValue = `${newVal.toFixed(2)}%`;
-    valueSuffix  = '%';
-  } else if (newVal >= 1e9) {
-    displayValue = `$${(newVal / 1e9).toFixed(2)}B`;
-    valueSuffix  = 'B';
-  } else {
-    displayValue = `$${(newVal / 1e6).toFixed(2)}M`;
-    valueSuffix  = 'M';
-  }
+  // Clamp to realistic bounds
+  newVal = Math.max(config.minVal, Math.min(config.maxVal, newVal));
 
+  const { display, suffix } = config.format(newVal);
   const now = new Date();
+
   return {
     id: nextId++,
     source,
     category,
-    rawValue: displayValue,
+    rawValue: display,
     numericValue: newVal,
-    displayValue,
-    valueSuffix,
+    displayValue: display,
+    valueSuffix: suffix,
     normalizedDate: now,
     dateISO: now.toISOString(),
     dateDisplay: now.toLocaleString('en-US', {
@@ -83,16 +112,8 @@ function generateLiveEntry(baseEntries) {
   };
 }
 
-// ─── Hook ─────────────────────────────────────────────────────────────────────
+// ── Hook ─────────────────────────────────────────────────────────────────────
 
-/**
- * useFeedData()
- *
- * Returns:
- *  - data:        full enriched array (sorted, normalized)
- *  - lastUpdated: Date of last tick
- *  - tickCount:   number of live updates received
- */
 export function useFeedData() {
   const [data, setData]               = useState(SEED_DATA);
   const [lastUpdated, setLastUpdated] = useState(new Date());
@@ -101,23 +122,18 @@ export function useFeedData() {
 
   const tick = useCallback(() => {
     const newEntry = generateLiveEntry(dataRef.current);
-
-    // Append at tail, keep last 80 entries to avoid memory bloat
-    const updated = [...dataRef.current, newEntry].slice(-80);
-
-    // Re-run delta computation only on Inflation entries
+    const updated  = [...dataRef.current, newEntry].slice(-100);
     const enriched = enrichWithSignals(computeInflationDeltas(updated));
 
     dataRef.current = enriched;
-
     setData(enriched);
     setLastUpdated(new Date());
     setTickCount((n) => n + 1);
   }, []);
 
   useEffect(() => {
-    const intervalId = setInterval(tick, 2000);
-    return () => clearInterval(intervalId);
+    const id = setInterval(tick, 2000);
+    return () => clearInterval(id);
   }, [tick]);
 
   return { data, lastUpdated, tickCount };

@@ -1,6 +1,1 @@
-/* App.css — minimal overrides; design system lives in index.css */
-#root {
-  min-height: 100vh;
-  display: flex;
-  flex-direction: column;
-}
+/* App.css — no longer needed; all styling via Tailwind */

@@ -1,65 +1,54 @@
 /**
- * DataRow.jsx
- * ─────────────────────────────────────────────────────────────
- * A single table row — wrapped in React.memo so it only re-renders
- * when its own data slice actually changes.
+ * DataRow.jsx — Memoized table row with shadcn Badges
  */
+import { memo } from 'react';
+import { Badge } from '@/components/ui/badge';
+import { TableRow, TableCell } from '@/components/ui/table';
+import { cn } from '@/lib/utils';
 
-import React, { memo } from 'react';
+// ── Category badge config ─────────────────────────────────────────────────
+const CAT_CONFIG = {
+  Inflation:  { variant: 'destructive', emoji: '📈' },
+  Employment: { variant: 'success',     emoji: '👷' },
+  GDP:        { variant: 'info',        emoji: '🏛️' },
+  Rates:      { variant: 'warning',     emoji: '🏦' },
+};
 
-/* ── Helpers ─────────────────────────────────────────────────── */
+const SIGNAL_CONFIG = {
+  good:    { variant: 'success',     label: '▲ Good',    emoji: '✅' },
+  bad:     { variant: 'destructive', label: '▼ Bad',     emoji: '🔴' },
+  neutral: { variant: 'ghost',       label: '— Neutral', emoji: '⚪' },
+};
 
+// ── Sub-components ────────────────────────────────────────────────────────
 function CategoryBadge({ category }) {
-  const icons = {
-    Inflation:  '📈',
-    Employment: '👷',
-    GDP:        '🏛️',
-    Rates:      '🏦',
-  };
-  return (
-    <span className={`cat-badge ${category}`} aria-label={`Category: ${category}`}>
-      {icons[category] ?? '📊'} {category}
-    </span>
-  );
+  const { variant, emoji } = CAT_CONFIG[category] ?? { variant: 'ghost', emoji: '📊' };
+  return <Badge variant={variant}>{emoji} {category}</Badge>;
 }
 
 function SourceBadge({ source }) {
-  return (
-    <span className="source-badge" aria-label={`Source: ${source}`}>
-      {source}
-    </span>
-  );
+  return <Badge variant="navy" className="font-mono text-[11px]">{source}</Badge>;
 }
 
 function SignalBadge({ signal }) {
-  const map = {
-    good:    { label: '▲ GOOD',    icon: '✅' },
-    bad:     { label: '▼ BAD',     icon: '🔴' },
-    neutral: { label: '— NEUTRAL', icon: '⚪' },
-  };
-  const { label, icon } = map[signal] ?? map.neutral;
-  return (
-    <span className={`signal-badge ${signal}`} aria-label={`Signal: ${signal}`}>
-      {icon} {label}
-    </span>
-  );
+  const { variant, label } = SIGNAL_CONFIG[signal] ?? SIGNAL_CONFIG.neutral;
+  return <Badge variant={variant}>{label}</Badge>;
 }
 
 function DeltaCell({ pctChange, isAlert, inflationAlertOn }) {
   if (pctChange === null) {
-    return <span className="delta-null td-mono">—</span>;
+    return <span className="text-muted-foreground font-mono text-xs">—</span>;
   }
-
-  const sign  = pctChange >= 0 ? '+' : '';
-  const cls   = pctChange >= 0 ? 'delta-positive' : 'delta-negative';
+  const sign    = pctChange >= 0 ? '+' : '';
+  const colorCls = pctChange >= 0 ? 'text-red-500 font-semibold' : 'text-emerald-600 font-semibold';
 
   return (
-    <span>
-      <span className={`${cls} td-mono`}>
-        {sign}{pctChange.toFixed(2)}%
+    <span className="flex items-center gap-1.5">
+      <span className={cn('font-mono text-xs', colorCls)}>
+        {sign}{pctChange.toFixed(3)}%
       </span>
       {inflationAlertOn && isAlert && (
-        <span className="delta-alert-chip" title="Inflation rose >5% from prior reading">
+        <span className="glow-alert inline-flex items-center gap-0.5 bg-red-500 text-white text-[10px] font-bold px-1.5 py-0.5 rounded">
           ⚡ ALERT
         </span>
       )}
@@ -67,62 +56,73 @@ function DeltaCell({ pctChange, isAlert, inflationAlertOn }) {
   );
 }
 
-/* ── Main Row ─────────────────────────────────────────────────── */
-
+// ── Main Row ──────────────────────────────────────────────────────────────
 function DataRow({ entry, index, inflationAlertOn }) {
-  const rowClass = [
-    inflationAlertOn && entry.isAlert ? 'row-alert' : '',
-    entry.isNew ? 'row-new' : '',
-  ].filter(Boolean).join(' ');
+  const isAlertRow = inflationAlertOn && entry.isAlert;
 
   return (
-    <tr className={rowClass} data-id={entry.id}>
-      <td className="td-mono" style={{ color: 'var(--text-muted)', fontSize: '11px' }}>
+    <TableRow
+      className={cn(
+        entry.isNew ? 'row-new' : '',
+        isAlertRow ? 'row-alert' : '',
+      )}
+      data-id={entry.id}
+    >
+      {/* Index */}
+      <TableCell className="text-muted-foreground font-mono text-[11px] w-10">
         {String(index + 1).padStart(3, '0')}
-      </td>
-      <td><SourceBadge source={entry.source} /></td>
-      <td><CategoryBadge category={entry.category} /></td>
-      <td>
-        <span className="td-mono" style={{ fontWeight: 600 }}>
+      </TableCell>
+
+      {/* Source */}
+      <TableCell><SourceBadge source={entry.source} /></TableCell>
+
+      {/* Category */}
+      <TableCell><CategoryBadge category={entry.category} /></TableCell>
+
+      {/* Display Value */}
+      <TableCell>
+        <span className="font-mono font-semibold text-slate-800 text-sm">
           {entry.displayValue}
         </span>
-      </td>
-      <td>
-        <span className="td-mono" style={{ color: 'var(--text-secondary)' }}>
+      </TableCell>
+
+      {/* Numeric */}
+      <TableCell>
+        <span className="font-mono text-xs text-slate-500">
           {entry.numericValue >= 1e9
-            ? `${(entry.numericValue / 1e9).toFixed(3)}B`
+            ? `${(entry.numericValue / 1e9).toFixed(4)}B`
             : entry.numericValue >= 1e6
-            ? `${(entry.numericValue / 1e6).toFixed(3)}M`
+            ? `${(entry.numericValue / 1e6).toFixed(4)}M`
             : entry.numericValue.toLocaleString('en-US', { maximumFractionDigits: 4 })}
         </span>
-      </td>
-      <td>
-        <span className="td-mono" style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>
-          {entry.dateDisplay}
-        </span>
-      </td>
-      <td>
+      </TableCell>
+
+      {/* Date */}
+      <TableCell>
+        <span className="font-mono text-xs text-slate-500">{entry.dateDisplay}</span>
+      </TableCell>
+
+      {/* Delta */}
+      <TableCell>
         <DeltaCell
           pctChange={entry.pctChange}
           isAlert={entry.isAlert}
           inflationAlertOn={inflationAlertOn}
         />
-      </td>
-      <td>
-        <SignalBadge signal={entry.signal} />
-      </td>
-    </tr>
+      </TableCell>
+
+      {/* Signal */}
+      <TableCell><SignalBadge signal={entry.signal} /></TableCell>
+    </TableRow>
   );
 }
 
-// Only re-render if these props change
-export default memo(DataRow, (prev, next) => {
-  return (
-    prev.entry.id          === next.entry.id &&
-    prev.entry.numericValue === next.entry.numericValue &&
-    prev.entry.isAlert      === next.entry.isAlert &&
-    prev.entry.signal       === next.entry.signal &&
-    prev.inflationAlertOn   === next.inflationAlertOn &&
-    prev.index              === next.index
-  );
-});
+// Custom equality — only re-render if this row's data actually changed
+export default memo(DataRow, (prev, next) =>
+  prev.entry.id           === next.entry.id &&
+  prev.entry.numericValue === next.entry.numericValue &&
+  prev.entry.isAlert      === next.entry.isAlert &&
+  prev.entry.signal       === next.entry.signal &&
+  prev.inflationAlertOn   === next.inflationAlertOn &&
+  prev.index              === next.index
+);
