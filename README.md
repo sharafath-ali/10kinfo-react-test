@@ -20,6 +20,28 @@ A high-end, responsive financial web application built with React and Vite. It c
   - Styled with custom raw CSS using a professional blue & white financial dashboard palette.
   - Fully responsive layout with summary cards, live feed indicator, and summary banner.
 
+## Data Flow Architecture
+
+```text
+┌─────────────────────────────────────────────────────────┐
+│              Everything is 100% local                   │
+│                                                         │
+│  Sample-data.json  ──import──►  normalizeData()         │
+│       (50 entries, read at build time)                  │
+│                          │                              │
+│                          ▼                              │
+│              SEED_DATA (in-memory array)                │
+│                          │                              │
+│                          ▼                              │
+│         setInterval(tick, 2000ms)                       │
+│           │                                             │
+│           └─► generateLiveEntry()  ← pure math/random   │
+│                   no fetch()                            │
+│                   no axios                              │
+│                   no WebSocket                          │
+└─────────────────────────────────────────────────────────┘
+```
+
 ## Tech Stack
 - React
 - Vite
