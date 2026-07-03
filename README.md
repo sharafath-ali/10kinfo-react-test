@@ -43,9 +43,11 @@ A high-end, responsive financial web application built with React and Vite. It c
 ```
 
 ## Tech Stack
-- React
-- Vite
-- Custom CSS Variables
+- React (v18+)
+- Vite (v8+)
+- Tailwind CSS v3
+- Radix UI Primitives (Slot, Switch, Select, Label)
+- Lucide React (Icons)
 
 ## Getting Started
 
