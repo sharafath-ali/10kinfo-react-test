@@ -122,7 +122,7 @@ export function useFeedData() {
 
   const tick = useCallback(() => {
     const newEntry = generateLiveEntry(dataRef.current);
-    const updated  = [...dataRef.current, newEntry].slice(-100);
+    const updated  = [...dataRef.current, newEntry].slice(-1000);
     const enriched = enrichWithSignals(computeInflationDeltas(updated));
 
     dataRef.current = enriched;
