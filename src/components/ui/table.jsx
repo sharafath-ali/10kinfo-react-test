@@ -3,12 +3,10 @@ import { cn } from "@/lib/utils";
 
 function Table({ className, ...props }) {
   return (
-    <div className="relative w-full overflow-auto">
-      <table
-        className={cn("w-full caption-bottom text-sm border-collapse", className)}
-        {...props}
-      />
-    </div>
+    <table
+      className={cn("w-full caption-bottom text-sm border-collapse min-w-full", className)}
+      {...props}
+    />
   );
 }
 
